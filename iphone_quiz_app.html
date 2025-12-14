@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="R 퀴즈">
+    <title>R 데이터마이닝 기말고사 연습</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        button {
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* iOS safe area 대응 */
+        body {
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-3 sm:p-4">
+    <div class="max-w-3xl mx-auto pb-4">
+        <div class="bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+                <h1 class="text-xl sm:text-2xl font-bold text-indigo-700">R 데이터마이닝 기말고사 연습</h1>
+                <button onclick="resetQuiz()" class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 rounded-lg transition text-sm sm:text-base">
+                    <span>↻</span> 처음부터
+                </button>
+            </div>
+            
+            <div class="mb-4">
+                <div class="flex justify-between text-sm text-gray-600 mb-2">
+                    <span id="questionCounter">문제 1 / 70</span>
+                    <span id="scoreCounter">맞힌 문제: 0 / 0</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div id="progressBar" class="bg-indigo-600 h-2 rounded-full transition-all" style="width: 1.43%"></div>
+                </div>
+            </div>
+
+            <div id="finishedMessage" class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4 hidden">
+                <h2 class="text-xl font-bold text-green-800 mb-2">🎉 완료!</h2>
+                <p id="finalScore" class="text-green-700"></p>
+            </div>
+
+            <div class="bg-indigo-50 rounded-lg p-4 sm:p-6 mb-6">
+                <h2 id="questionText" class="text-lg sm:text-xl font-semibold mb-4 text-gray-800 leading-relaxed"></h2>
+                
+                <div id="optionsContainer" class="space-y-3"></div>
+            </div>
+
+            <div id="resultMessage" class="rounded-lg p-4 mb-4 hidden"></div>
+
+            <div class="flex justify-between gap-3 sm:gap-4">
+                <button onclick="prevQuestion()" id="prevBtn" class="flex-1 px-4 sm:px-6 py-3 bg-gray-200 hover:bg-gray-300 active:bg-gray-400 disabled:bg-gray-100 disabled:text-gray-400 rounded-lg font-semibold transition text-sm sm:text-base">
+                    ← 이전
+                </button>
+                <button onclick="nextQuestion()" id="nextBtn" class="flex-1 px-4 sm:px-6 py-3 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:bg-gray-300 disabled:text-gray-500 text-white rounded-lg font-semibold transition text-sm sm:text-base">
+                    다음 →
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg p-4">
+            <h3 class="font-bold text-gray-700 mb-2">문제 진행 상황</h3>
+            <div id="questionGrid" class="grid grid-cols-10 gap-2"></div>
+        </div>
+    </div>
+
+    <script>
+        const originalQuestions = [
+            { q: "1. R에서 데이터프레임을 생성하는 함수는?", options: ["list()", "data.frame()", "matrix()", "vector()"], correct: 1 },
+            { q: "2. 결측치를 확인하는 함수는?", options: ["is.null()", "is.na()", "is.empty()", "is.missing()"], correct: 1 },
+            { q: "3. 데이터프레임의 구조를 확인하는 함수는?", options: ["summary()", "str()", "head()", "view()"], correct: 1 },
+            { q: "4. dplyr 패키지에서 행을 필터링하는 함수는?", options: ["select()", "filter()", "arrange()", "mutate()"], correct: 1 },
+            { q: "5. 데이터를 정렬하는 dplyr 함수는?", options: ["sort()", "order()", "arrange()", "rank()"], correct: 2 },
+            { q: "6. 새로운 변수를 생성하는 dplyr 함수는?", options: ["create()", "mutate()", "add()", "new()"], correct: 1 },
+            { q: "7. 그룹별 요약 통계를 구하는 dplyr 함수는?", options: ["group_by() + summarize()", "aggregate()", "by()", "tapply()"], correct: 0 },
+            { q: "8. 파이프 연산자는?", options: ["|", "||", "%>%", "->"], correct: 2 },
+            { q: "9. ggplot2에서 그래프의 기본 레이어를 만드는 함수는?", options: ["plot()", "ggplot()", "graph()", "chart()"], correct: 1 },
+            { q: "10. ggplot2에서 산점도를 그리는 geom은?", options: ["geom_line()", "geom_point()", "geom_bar()", "geom_scatter()"], correct: 1 },
+            { q: "11. 의사결정나무를 만드는 rpart 패키지의 주요 함수는?", options: ["tree()", "rpart()", "dtree()", "decision()"], correct: 1 },
+            { q: "12. 랜덤포레스트를 구현하는 패키지는?", options: ["tree", "randomForest", "forest", "rforest"], correct: 1 },
+            { q: "13. k-means 군집분석 함수는?", options: ["cluster()", "kmeans()", "k_means()", "clustering()"], correct: 1 },
+            { q: "14. 주성분분석(PCA)을 수행하는 함수는?", options: ["pca()", "prcomp()", "principal()", "pc()"], correct: 1 },
+            { q: "15. 상관계수를 구하는 함수는?", options: ["corr()", "cor()", "correlation()", "pearson()"], correct: 1 },
+            { q: "16. 선형회귀 모델을 만드는 함수는?", options: ["linear()", "lm()", "regression()", "reg()"], correct: 1 },
+            { q: "17. 로지스틱 회귀를 수행하는 함수는?", options: ["logit()", "glm()", "logistic()", "lr()"], correct: 1 },
+            { q: "18. 교차검증을 위한 caret 패키지의 주요 함수는?", options: ["cv()", "train()", "validate()", "cross()"], correct: 1 },
+            { q: "19. 혼동행렬을 만드는 caret 함수는?", options: ["confusion()", "confusionMatrix()", "matrix()", "table()"], correct: 1 },
+            { q: "20. ROC 곡선의 AUC를 계산하는 패키지는?", options: ["roc", "pROC", "ROC", "auc"], correct: 1 },
+            { q: "21. 데이터를 훈련/테스트로 나누는 caret 함수는?", options: ["split()", "createDataPartition()", "divide()", "partition()"], correct: 1 },
+            { q: "22. SVM을 구현하는 패키지는?", options: ["svm", "e1071", "support", "vector"], correct: 1 },
+            { q: "23. 나이브 베이즈 분류를 위한 패키지는?", options: ["bayes", "e1071", "naive", "nb"], correct: 1 },
+            { q: "24. 시계열 데이터를 다루는 기본 클래스는?", options: ["time", "ts", "series", "timeseries"], correct: 1 },
+            { q: "25. ARIMA 모델을 만드는 함수는?", options: ["arima()", "ts.arima()", "model.arima()", "time.arima()"], correct: 0 },
+            { q: "26. 텍스트 마이닝을 위한 패키지는?", options: ["text", "tm", "textmine", "mining"], correct: 1 },
+            { q: "27. 단어구름을 만드는 패키지는?", options: ["cloud", "wordcloud", "word", "textcloud"], correct: 1 },
+            { q: "28. 연관규칙 분석을 위한 패키지는?", options: ["association", "arules", "rules", "apriori"], correct: 1 },
+            { q: "29. Apriori 알고리즘을 실행하는 함수는?", options: ["apriori()", "association()", "rules()", "frequent()"], correct: 0 },
+            { q: "30. 신경망을 구현하는 기본 패키지는?", options: ["neural", "nnet", "network", "nn"], correct: 1 },
+            { q: "31. 데이터 정규화(스케일링)를 위한 함수는?", options: ["normalize()", "scale()", "standardize()", "norm()"], correct: 1 },
+            { q: "32. 범주형 변수를 더미 변수로 변환하는 방법은?", options: ["dummy()", "model.matrix()", "factor()", "categorical()"], correct: 1 },
+            { q: "33. 데이터의 요약 통계량을 보는 함수는?", options: ["stat()", "summary()", "describe()", "info()"], correct: 1 },
+            { q: "34. 분산분석(ANOVA)을 수행하는 함수는?", options: ["anova()", "aov()", "variance()", "analysis()"], correct: 1 },
+            { q: "35. t-검정을 수행하는 함수는?", options: ["ttest()", "t.test()", "test.t()", "t_test()"], correct: 1 },
+            { q: "36. 카이제곱 검정 함수는?", options: ["chi()", "chisq.test()", "chi2()", "chisquare()"], correct: 1 },
+            { q: "37. 계층적 군집분석 함수는?", options: ["hierarchical()", "hclust()", "cluster.h()", "h_cluster()"], correct: 1 },
+            { q: "38. 덴드로그램을 그리는 함수는?", options: ["dendro()", "plot()", "tree.plot()", "dendrogram()"], correct: 1 },
+            { q: "39. 실루엣 계수를 계산하는 패키지는?", options: ["silhouette", "cluster", "clust", "sil"], correct: 1 },
+            { q: "40. 그래디언트 부스팅을 구현하는 패키지는?", options: ["boost", "gbm", "gradient", "xgb"], correct: 1 },
+            { q: "41. XGBoost 패키지의 이름은?", options: ["xgb", "xgboost", "boost", "gradient"], correct: 1 },
+            { q: "42. 앙상블 학습의 종류가 아닌 것은?", options: ["Bagging", "Boosting", "Stacking", "Clustering"], correct: 3 },
+            { q: "43. 변수 중요도를 확인하는 randomForest 함수는?", options: ["importance()", "varImp()", "variable()", "feature()"], correct: 0 },
+            { q: "44. 데이터프레임을 CSV로 저장하는 함수는?", options: ["save.csv()", "write.csv()", "export.csv()", "to.csv()"], correct: 1 },
+            { q: "45. CSV 파일을 읽는 함수는?", options: ["load.csv()", "read.csv()", "import.csv()", "open.csv()"], correct: 1 },
+            { q: "46. 결측치를 제거하는 함수는?", options: ["remove.na()", "na.omit()", "drop.na()", "delete.na()"], correct: 1 },
+            { q: "47. 결측치를 특정 값으로 대체하는 방법은?", options: ["replace()", "ifelse()", "substitute()", "모두 가능"], correct: 3 },
+            { q: "48. 이상치 탐지에 사용되는 통계량은?", options: ["평균", "중앙값", "IQR", "분산"], correct: 2 },
+            { q: "49. 박스플롯을 그리는 함수는?", options: ["box()", "boxplot()", "plot.box()", "bplot()"], correct: 1 },
+            { q: "50. 히스토그램을 그리는 함수는?", options: ["histogram()", "hist()", "histo()", "bar()"], correct: 1 },
+            { q: "51. 정확도(Accuracy) 계산 공식은?", options: ["TP/(TP+FP)", "(TP+TN)/(TP+TN+FP+FN)", "TP/(TP+FN)", "TN/(TN+FP)"], correct: 1 },
+            { q: "52. 재현율(Recall)의 다른 이름은?", options: ["Precision", "Sensitivity", "Specificity", "F1-Score"], correct: 1 },
+            { q: "53. F1-Score는 무엇의 조화평균인가?", options: ["정확도와 재현율", "정밀도와 재현율", "정확도와 정밀도", "특이도와 민감도"], correct: 1 },
+            { q: "54. 과적합(Overfitting)을 방지하는 방법이 아닌 것은?", options: ["정규화", "교차검증", "데이터 증가", "변수 추가"], correct: 3 },
+            { q: "55. Ridge 회귀의 정규화 유형은?", options: ["L0", "L1", "L2", "L3"], correct: 2 },
+            { q: "56. Lasso 회귀의 정규화 유형은?", options: ["L0", "L1", "L2", "L3"], correct: 1 },
+            { q: "57. k-fold 교차검증에서 일반적인 k 값은?", options: ["3", "5", "10", "5 또는 10"], correct: 3 },
+            { q: "58. 지니 계수는 어떤 모델에서 사용되는가?", options: ["회귀", "의사결정나무", "군집분석", "PCA"], correct: 1 },
+            { q: "59. 엔트로피는 무엇을 측정하는가?", options: ["거리", "불순도", "상관관계", "분산"], correct: 1 },
+            { q: "60. KNN 알고리즘에서 K는 무엇을 의미하는가?", options: ["군집 수", "이웃 수", "변수 수", "반복 수"], correct: 1 },
+            { q: "61. 맨하탄 거리의 다른 이름은?", options: ["유클리드 거리", "L1 거리", "L2 거리", "코사인 거리"], correct: 1 },
+            { q: "62. 차원의 저주(Curse of Dimensionality)란?", options: ["변수가 너무 적은 문제", "변수가 너무 많은 문제", "데이터가 부족한 문제", "시간이 오래 걸리는 문제"], correct: 1 },
+            { q: "63. 배깅(Bagging)의 의미는?", options: ["Bootstrap Aggregating", "Best Aggregating", "Boost Aggregating", "Batch Aggregating"], correct: 0 },
+            { q: "64. 부스팅(Boosting)의 특징은?", options: ["병렬 학습", "순차 학습", "무작위 학습", "계층 학습"], correct: 1 },
+            { q: "65. TF-IDF에서 TF는 무엇을 의미하는가?", options: ["Total Frequency", "Term Frequency", "Text Frequency", "Token Frequency"], correct: 1 },
+            { q: "66. 코사인 유사도의 범위는?", options: ["0~1", "-1~1", "0~∞", "-∞~∞"], correct: 1 },
+            { q: "67. 지지도(Support)가 의미하는 것은?", options: ["규칙의 정확도", "항목의 출현 빈도", "규칙의 향상도", "항목의 상관관계"], correct: 1 },
+            { q: "68. 신뢰도(Confidence)의 의미는?", options: ["A 발생 시 B가 발생할 확률", "A와 B가 동시에 발생할 확률", "B 발생 시 A가 발생할 확률", "A 또는 B가 발생할 확률"], correct: 0 },
+            { q: "69. 향상도(Lift)가 1보다 크면?", options: ["독립적", "양의 상관관계", "음의 상관관계", "무관"], correct: 1 },
+            { q: "70. 딥러닝과 머신러닝의 차이는?", options: ["알고리즘", "특징 추출 방식", "데이터 양", "모두 해당"], correct: 1 }
+        ];
+
+        // 문제 섞기 함수
+        function shuffleArray(array) {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        let questions = shuffleArray(originalQuestions);
+        let currentQuestion = 0;
+        let answers = {};
+        let selectedAnswer = null;
+        let showResult = false;
+
+        function renderQuestion() {
+            const q = questions[currentQuestion];
+            document.getElementById('questionText').textContent = `${currentQuestion + 1}. ${q.q.substring(q.q.indexOf('.') + 2)}`;
+            
+            const optionsContainer = document.getElementById('optionsContainer');
+            optionsContainer.innerHTML = '';
+            
+            q.options.forEach((option, index) => {
+                const button = document.createElement('button');
+                button.className = 'w-full text-left p-3 sm:p-4 rounded-lg border-2 transition-all flex items-center justify-between touch-manipulation';
+                
+                const isSelected = selectedAnswer === index;
+                const isCorrect = index === q.correct;
+                const showCorrect = showResult && isCorrect;
+                const showWrong = showResult && isSelected && !isCorrect;
+                
+                if (showCorrect) {
+                    button.className += ' bg-green-100 border-green-500';
+                } else if (showWrong) {
+                    button.className += ' bg-red-100 border-red-500';
+                } else if (isSelected) {
+                    button.className += ' bg-indigo-100 border-indigo-500';
+                } else {
+                    button.className += ' bg-white border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 active:bg-indigo-100';
+                }
+                
+                if (showResult) {
+                    button.className += ' cursor-default';
+                } else {
+                    button.className += ' cursor-pointer';
+                }
+                
+                const span = document.createElement('span');
+                span.className = 'font-medium';
+                span.textContent = option;
+                button.appendChild(span);
+                
+                if (showCorrect) {
+                    const icon = document.createElement('span');
+                    icon.textContent = '✓';
+                    icon.className = 'text-green-600 text-2xl';
+                    button.appendChild(icon);
+                } else if (showWrong) {
+                    const icon = document.createElement('span');
+                    icon.textContent = '✗';
+                    icon.className = 'text-red-600 text-2xl';
+                    button.appendChild(icon);
+                }
+                
+                if (!showResult) {
+                    button.onclick = () => handleAnswer(index);
+                }
+                
+                optionsContainer.appendChild(button);
+            });
+            
+            updateUI();
+        }
+
+        function handleAnswer(answerIndex) {
+            if (showResult) return;
+            
+            selectedAnswer = answerIndex;
+            showResult = true;
+            
+            const isCorrect = answerIndex === questions[currentQuestion].correct;
+            answers[currentQuestion] = { answer: answerIndex, isCorrect: isCorrect };
+            
+            renderQuestion();
+            showResultMessage(isCorrect);
+            updateScore();
+            checkFinished();
+        }
+
+        function showResultMessage(isCorrect) {
+            const resultDiv = document.getElementById('resultMessage');
+            resultDiv.className = 'rounded-lg p-4 mb-4 ';
+            
+            if (isCorrect) {
+                resultDiv.className += 'bg-green-50 border border-green-200';
+                resultDiv.innerHTML = '<p class="font-bold text-green-800">✓ 정답입니다!</p>';
+            } else {
+                resultDiv.className += 'bg-red-50 border border-red-200';
+                const correctAnswer = questions[currentQuestion].options[questions[currentQuestion].correct];
+                resultDiv.innerHTML = `
+                    <p class="font-bold text-red-800">✗ 오답입니다.</p>
+                    <p class="text-sm text-gray-700 mt-1">정답: ${correctAnswer}</p>
+                `;
+            }
+            
+            resultDiv.classList.remove('hidden');
+        }
+
+        function updateUI() {
+            document.getElementById('questionCounter').textContent = `문제 ${currentQuestion + 1} / ${questions.length}`;
+            
+            const progressPercent = ((currentQuestion + 1) / questions.length) * 100;
+            document.getElementById('progressBar').style.width = progressPercent + '%';
+            
+            document.getElementById('prevBtn').disabled = currentQuestion === 0;
+            document.getElementById('nextBtn').disabled = currentQuestion === questions.length - 1 || !showResult;
+            
+            if (!showResult) {
+                document.getElementById('resultMessage').classList.add('hidden');
+            }
+        }
+
+        function updateScore() {
+            const correctCount = Object.values(answers).filter(a => a.isCorrect).length;
+            const answeredCount = Object.keys(answers).length;
+            document.getElementById('scoreCounter').textContent = `맞힌 문제: ${correctCount} / ${answeredCount}`;
+        }
+
+        function checkFinished() {
+            if (Object.keys(answers).length === questions.length) {
+                const correctCount = Object.values(answers).filter(a => a.isCorrect).length;
+                const percentage = ((correctCount / questions.length) * 100).toFixed(1);
+                
+                document.getElementById('finishedMessage').classList.remove('hidden');
+                document.getElementById('finalScore').innerHTML = `
+                    총 ${questions.length}문제 중 <span class="font-bold text-2xl">${correctCount}문제</span> 정답!
+                    (${percentage}%)
+                `;
+            }
+        }
+
+        function nextQuestion() {
+            if (currentQuestion < questions.length - 1 && showResult) {
+                currentQuestion++;
+                selectedAnswer = answers[currentQuestion]?.answer || null;
+                showResult = !!answers[currentQuestion];
+                renderQuestion();
+            }
+        }
+
+        function prevQuestion() {
+            if (currentQuestion > 0) {
+                currentQuestion--;
+                selectedAnswer = answers[currentQuestion]?.answer || null;
+                showResult = !!answers[currentQuestion];
+                renderQuestion();
+            }
+        }
+
+        function goToQuestion(index) {
+            currentQuestion = index;
+            selectedAnswer = answers[currentQuestion]?.answer || null;
+            showResult = !!answers[currentQuestion];
+            renderQuestion();
+        }
+
+        function resetQuiz() {
+            questions = shuffleArray(originalQuestions);
+            currentQuestion = 0;
+            answers = {};
+            selectedAnswer = null;
+            showResult = false;
+            document.getElementById('finishedMessage').classList.add('hidden');
+            renderQuestion();
+            renderGrid();
+            updateScore();
+        }
+
+        function renderGrid() {
+            const grid = document.getElementById('questionGrid');
+            grid.innerHTML = '';
+            
+            questions.forEach((_, index) => {
+                const button = document.createElement('button');
+                button.className = 'w-full aspect-square rounded flex items-center justify-center text-sm font-semibold transition ';
+                
+                const answered = answers[index];
+                if (answered?.isCorrect) {
+                    button.className += 'bg-green-500 text-white';
+                } else if (answered && !answered.isCorrect) {
+                    button.className += 'bg-red-500 text-white';
+                } else if (currentQuestion === index) {
+                    button.className += 'bg-indigo-600 text-white';
+                } else {
+                    button.className += 'bg-gray-200 text-gray-600 hover:bg-gray-300 active:bg-gray-400';
+                }
+                
+                button.textContent = index + 1;
+                button.onclick = () => goToQuestion(index);
+                
+                grid.appendChild(button);
+            });
+        }
+
+        // 초기 렌더링
+        renderQuestion();
+        renderGrid();
+    </script>
+</body>
+</html>
